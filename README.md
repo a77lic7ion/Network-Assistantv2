@@ -40,6 +40,19 @@ PLEASE NOTE THIS IS AN OPEN SOURCE WIP - ANY ADDITIONS, SUGGESTIONS IMPROVEMENTS
 
 ---
 
+<img width="1917" height="916" alt="image" src="https://github.com/user-attachments/assets/43a8d0d2-4280-4058-9dcb-a0db5cb9d895" />
+<img width="616" height="609" alt="image" src="https://github.com/user-attachments/assets/4331b88c-8b41-4f13-8b9d-0e0e4f378215" />
+<img width="1047" height="844" alt="image" src="https://github.com/user-attachments/assets/a04cd3ee-8a1e-4c3c-b937-bf0763db882d" />
+<img width="1038" height="860" alt="image" src="https://github.com/user-attachments/assets/1ad3339f-67f0-42f8-9e18-3101b9b6e879" />
+<img width="653" height="853" alt="image" src="https://github.com/user-attachments/assets/036dfe22-52ba-4b95-a1a0-f6945f07c0c9" />
+<img width="650" height="866" alt="image" src="https://github.com/user-attachments/assets/ad024be6-1fb5-45bf-be38-c80cc2bd40a0" />
+<img width="652" height="857" alt="image" src="https://github.com/user-attachments/assets/7e4a67ca-ee93-43cf-8aaf-03ac21c5873e" />
+<img width="861" height="717" alt="image" src="https://github.com/user-attachments/assets/a5d939ce-b6f2-41d9-a38a-5b444ebb3795" />
+<img width="940" height="744" alt="image" src="https://github.com/user-attachments/assets/4bb46ba5-c7f8-4174-aec6-4965e7af6162" />
+<img width="624" height="668" alt="image" src="https://github.com/user-attachments/assets/cfdc4cbb-5c9a-46f3-8d68-c338fead2d7c" />
+<img width="807" height="826" alt="image" src="https://github.com/user-attachments/assets/fc456d27-160a-40f0-aa55-fc69612fbdc8" />
+
+
 ## 🛠️ Installation & Setup
 
 ### Prerequisites
