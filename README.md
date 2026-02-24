@@ -5,6 +5,8 @@ NetLab AI is a next-generation network topology design, simulation, and automati
 ![Status](https://img.shields.io/badge/status-active-success.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
+PLEASE NOTE THIS IS AN OPEN SOURCE WIP - ANY ADDITIONS, SUGGESTIONS IMPROVEMENTS ARE WELCOME!! LETS KEEP IT FREE
+
 ## 🚀 Features
 
 ### 1. Intelligent Topology Visualization
