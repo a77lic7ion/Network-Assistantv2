@@ -16,6 +16,8 @@ const ConfigUploader: React.FC<ConfigUploaderProps> = ({ onUpload, fileName, dev
         const reader = new FileReader();
         reader.onload = (e) => {
             const rawContent = e.target?.result as string;
+            // Pass the deviceId and rawContent to the parent callback
+            // The parent (NodeInfoTab) will handle updateDevice and appendToRunningConfig
             onUpload(deviceId, rawContent);
             setCurrentFile(file.name);
         };
@@ -79,7 +81,10 @@ const ConfigUploader: React.FC<ConfigUploaderProps> = ({ onUpload, fileName, dev
                     <FileText size={14} className="text-cisco-blue" />
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-1">Raw Context Active</span>
                     <button
-                        onClick={() => { setCurrentFile(null); onUpload(''); }}
+                        onClick={() => {
+                            setCurrentFile(null);
+                            onUpload(deviceId, ''); // Clear the config
+                        }}
                         className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest"
                     >
                         Clear

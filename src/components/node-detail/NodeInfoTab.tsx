@@ -22,15 +22,34 @@ const NodeInfoTab: React.FC<NodeInfoTabProps> = ({ device, id }) => {
     };
 
     const handleConfigUpload = (uploadedDeviceId: string, rawContent: string) => {
+        // If content is empty (cleared), clear the device config
+        if (!rawContent) {
+            updateDevice(uploadedDeviceId, {
+                blankConfigContext: '',
+                runningConfig: '',
+                configBlockCount: 0
+            });
+            return;
+        }
+
         const parsed = ConfigTabParser.parse(rawContent);
+        
+        // 1. Update basic info and blank config context
         updateDevice(uploadedDeviceId, {
-            blankConfigContext: rawContent, // Store raw content
+            blankConfigContext: rawContent, 
             deviceModel: parsed.hardwareModel || device.deviceModel,
             softwareVersion: parsed.osVersion || device.softwareVersion,
             hostname: parsed.hostname || device.hostname,
             managementIp: parsed.managementIp || device.managementIp,
+            // 2. IMPORTANT: Force update runningConfig immediately with the raw content
+            // This ensures InterfacesTab receives the data instantly without waiting for 'Apply Config'
+            runningConfig: rawContent
         });
-        autoConnectNodes(uploadedDeviceId); // Trigger auto-connection after config upload
+        
+        // 3. Trigger auto-connection logic
+        autoConnectNodes(uploadedDeviceId);
+        
+        toast.success('Configuration applied successfully');
     };
 
     const fields = [
@@ -75,13 +94,14 @@ const NodeInfoTab: React.FC<NodeInfoTabProps> = ({ device, id }) => {
                             <FileText size={14} className="text-cisco-blue" />
                             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-1">Raw Context Active</span>
                             <button
-                                onClick={() => {
-                                    updateDevice(id, { blankConfigContext: '' });
-                                }}
-                                className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest"
-                            >
-                                Clear
-                            </button>
+                            onClick={() => {
+                                updateDevice(id, { blankConfigContext: '', runningConfig: '' });
+                                toast.success('Device configuration cleared');
+                            }}
+                            className="text-[10px] font-bold text-red-400 hover:text-red-300 uppercase tracking-widest"
+                        >
+                            Clear
+                        </button>
                         </div>
                         <button
                             onClick={() => appendToRunningConfig(id, device.blankConfigContext)}

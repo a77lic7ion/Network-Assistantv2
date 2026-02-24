@@ -6,11 +6,19 @@ import { PingResult } from '../../types';
 import { toast } from 'sonner';
 
 const SimulatorPanel: React.FC = () => {
-    const { nodes, edges } = useNetworkStore();
+    const { getNodesForCurrentProject, edges, currentProjectId } = useNetworkStore();
+    const nodes = getNodesForCurrentProject();
     const [sourceId, setSourceId] = useState('');
     const [targetId, setTargetId] = useState('');
     const [isSimulating, setIsSimulating] = useState(false);
     const [result, setResult] = useState<PingResult | null>(null);
+
+    // Reset selection when project changes
+    React.useEffect(() => {
+        setSourceId('');
+        setTargetId('');
+        setResult(null);
+    }, [currentProjectId]);
 
     const handleSimulate = () => {
         if (!sourceId || !targetId) {

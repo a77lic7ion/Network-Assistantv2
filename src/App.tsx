@@ -4,6 +4,7 @@ import TopBar from './components/layout/TopBar';
 import RightPanel from './components/layout/RightPanel';
 import NetworkCanvas from './components/canvas/NetworkCanvas';
 import DeviceModal from './components/canvas/DeviceModal';
+import BulkUploadModal from './components/canvas/BulkUploadModal';
 import NodeDetailPanel from './components/node-detail/NodeDetailPanel';
 import SettingsModal from './components/settings/SettingsModal';
 import GlobalConfigPanel from './components/global-config/GlobalConfigPanel';
@@ -16,6 +17,7 @@ const App: React.FC = () => {
     const [activeView, setActiveView] = useState('topology');
     const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
     const [isDeviceModalOpen, setIsDeviceModalOpen] = useState(false);
+    const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
     const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
     const [modalMode, setModalMode] = useState<'core' | 'normal'>('normal');
 
@@ -47,8 +49,16 @@ const App: React.FC = () => {
         setIsDeviceModalOpen(true);
     };
 
+    const handleAddMultiple = () => {
+        setIsBulkUploadModalOpen(true);
+    };
+
+    const autoConnectNodes = useNetworkStore((state) => state.autoConnectNodes);
     const onDeviceSubmit = (data: Partial<DeviceNodeData>) => {
-        addDevice(data, { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 });
+        const id = addDevice(data, { x: Math.random() * 400 + 100, y: Math.random() * 400 + 100 });
+        if (data.blankConfigContext && data.blankConfigContext.length > 0) {
+            autoConnectNodes(id);
+        }
     };
 
     return (
@@ -61,6 +71,7 @@ const App: React.FC = () => {
                     setActiveView={setActiveView}
                     onAddCore={handleAddCore}
                     onAddNode={handleAddNode}
+                    onAddMultiple={handleAddMultiple}
                 />
 
                 <div className="flex-1 bg-canvas relative overflow-hidden">
@@ -108,6 +119,11 @@ const App: React.FC = () => {
                 onClose={() => setIsDeviceModalOpen(false)}
                 isCore={modalMode === 'core'}
                 onSubmit={onDeviceSubmit}
+            />
+
+            <BulkUploadModal
+                isOpen={isBulkUploadModalOpen}
+                onClose={() => setIsBulkUploadModalOpen(false)}
             />
 
             <SettingsModal

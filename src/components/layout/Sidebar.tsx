@@ -1,16 +1,20 @@
 import React from 'react';
-import { Settings, Network, Zap, Globe, MessageSquare, HelpCircle, Plus } from 'lucide-react';
+import { Settings, Network, Zap, Globe, MessageSquare, HelpCircle, Plus, Layout, Trash2 } from 'lucide-react';
 import { useNetworkStore } from '../../store/useNetworkStore';
+import { toast } from 'sonner';
 
 interface SidebarProps {
     onAddCore: () => void;
     onAddNode: () => void;
+    onAddMultiple: () => void;
     activeView: string;
     setActiveView: (view: string) => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onAddCore, onAddNode, activeView, setActiveView }) => {
+const Sidebar: React.FC<SidebarProps> = ({ onAddCore, onAddNode, onAddMultiple, activeView, setActiveView }) => {
     const coreNodeId = useNetworkStore((state) => state.coreNodeId);
+    const groupConnectedDevices = useNetworkStore((state) => state.groupConnectedDevices);
+    const clearCurrentProject = useNetworkStore((state) => state.clearCurrentProject);
 
     const menuItems = [
         { id: 'topology', label: 'Topology', icon: Network },
@@ -33,13 +37,44 @@ const Sidebar: React.FC<SidebarProps> = ({ onAddCore, onAddNode, activeView, set
                     Add CORE Device
                 </button>
 
-                <button
-                    onClick={onAddNode}
-                    className="flex w-full items-center justify-center gap-2 rounded-md border border-node-border bg-node px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-node-border"
-                >
-                    <Plus size={16} />
-                    Add Node
-                </button>
+                <div className="flex flex-col gap-2">
+                    <button
+                        onClick={onAddNode}
+                        className="flex w-full items-center justify-center gap-2 rounded-md border border-node-border bg-node px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-node-border"
+                    >
+                        <Plus size={16} />
+                        Add Node
+                    </button>
+
+                    <button
+                        onClick={onAddMultiple}
+                        className="flex w-full items-center justify-center gap-2 rounded-md border border-node-border bg-node px-4 py-2 text-[10px] font-black uppercase tracking-widest text-cisco-blue transition-colors hover:bg-node-border"
+                    >
+                        <Plus size={12} />
+                        Add Multiple Files
+                    </button>
+
+                    <button
+                        onClick={groupConnectedDevices}
+                        className="flex w-full items-center justify-center gap-2 rounded-md border border-node-border bg-node/40 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-gray-400 transition-colors hover:bg-node-border hover:text-white"
+                    >
+                        <Layout size={12} />
+                        Auto-Group Topology
+                    </button>
+
+                    <button
+                        onClick={() => {
+                            if (window.confirm('Are you sure you want to delete ALL devices and links in this project? This cannot be undone.')) {
+                                clearCurrentProject();
+                                toast.success('Topology cleared successfully');
+                            }
+                        }}
+                        className="flex w-full items-center justify-center gap-2 rounded-md border border-red-500/20 bg-red-500/10 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-red-500 transition-colors hover:bg-red-500/20"
+                    >
+                        <Trash2 size={12} />
+                        Clear Topology
+                    </button>
+                </div>
             </div>
 
             <nav className="flex-1 px-4">

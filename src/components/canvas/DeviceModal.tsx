@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Upload, Info, Cpu, Network, Router, Wifi, Server, Zap } from 'lucide-react';
 import { DeviceNodeData, DeviceType, Vendor } from '../../types';
+import { ConfigTabParser } from '../../parsers/configTabParser';
 
 interface DeviceModalProps {
     isOpen: boolean;
@@ -19,8 +20,13 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ isOpen, onClose, onSubmit, in
         softwareVersion: '',
         deviceType: 'switch',
         isCore: isCore,
+        macAddress: '',
+        serialNumber: '',
+        status: 'OK',
+        activeInterfacesCount: 0,
         ...initialData
     });
+    const [availableIps, setAvailableIps] = useState<string[]>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -30,18 +36,60 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ isOpen, onClose, onSubmit, in
                 vendor: 'cisco',
                 deviceModel: '',
                 softwareVersion: '',
-                deviceType: isCore ? 'switch' : 'switch',
+                deviceType: 'switch',
                 isCore: isCore,
+                macAddress: '',
+                serialNumber: '',
+                status: 'OK',
+                activeInterfacesCount: 0,
                 ...initialData
             });
+            setAvailableIps([]);
         }
     }, [isOpen, initialData, isCore]);
 
     if (!isOpen) return null;
 
+    const handleConfigUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const content = event.target?.result as string;
+            const parsed = ConfigTabParser.parse(content) as any;
+            
+            setFormData(prev => ({
+                ...prev,
+                hostname: parsed.hostname || prev.hostname,
+                managementIp: parsed.managementIp || prev.managementIp,
+                deviceModel: parsed.hardwareModel || prev.deviceModel,
+                softwareVersion: parsed.osVersion || prev.softwareVersion,
+                blankConfigContext: content,
+                macAddress: parsed.macAddress || prev.macAddress,
+                serialNumber: parsed.serialNumber || prev.serialNumber,
+                activeInterfacesCount: parsed.interfaces?.length || 0,
+                status: 'OK',
+                configuredDate: new Date().toISOString().split('T')[0]
+            }));
+            
+            if (parsed.allIps && parsed.allIps.length > 0) {
+                setAvailableIps(parsed.allIps);
+            }
+        };
+        reader.readAsText(file);
+    };
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        onSubmit(formData);
+        
+        // Ensure that if a config was uploaded, it is applied to runningConfig as well
+        const finalData = {
+            ...formData,
+            runningConfig: formData.blankConfigContext || formData.runningConfig || ''
+        };
+        
+        onSubmit(finalData);
         onClose();
     };
 
@@ -88,13 +136,27 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ isOpen, onClose, onSubmit, in
 
                             <div>
                                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5 ml-1">Management IP</label>
-                                <input
-                                    required
-                                    placeholder="e.g. 192.168.1.1/24"
-                                    className="w-full rounded-lg border border-node-border bg-node px-4 py-2.5 text-sm font-medium text-white placeholder:text-gray-600 focus:border-cisco-blue focus:outline-none focus:ring-1 focus:ring-cisco-blue"
-                                    value={formData.managementIp}
-                                    onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
-                                />
+                                <div className="flex gap-2">
+                                    <input
+                                        required
+                                        placeholder="e.g. 192.168.1.1/24"
+                                        className="flex-1 rounded-lg border border-node-border bg-node px-4 py-2.5 text-sm font-medium text-white placeholder:text-gray-600 focus:border-cisco-blue focus:outline-none focus:ring-1 focus:ring-cisco-blue"
+                                        value={formData.managementIp}
+                                        onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
+                                    />
+                                    {availableIps.length > 0 && (
+                                        <select
+                                            className="w-32 rounded-lg border border-node-border bg-node px-2 py-2.5 text-[10px] font-bold uppercase text-cisco-blue focus:border-cisco-blue focus:outline-none"
+                                            onChange={(e) => setFormData({ ...formData, managementIp: e.target.value })}
+                                            value=""
+                                        >
+                                            <option value="" disabled>Detected</option>
+                                            {availableIps.map(ip => (
+                                                <option key={ip} value={ip}>{ip}</option>
+                                            ))}
+                                        </select>
+                                    )}
+                                </div>
                             </div>
 
                             <div>
@@ -156,14 +218,46 @@ const DeviceModal: React.FC<DeviceModalProps> = ({ isOpen, onClose, onSubmit, in
                                 />
                             </div>
 
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5 ml-1">MAC Address</label>
+                                    <input
+                                        placeholder="e.g. 001A.2B3C.4D5E"
+                                        className="w-full rounded-lg border border-node-border bg-node px-4 py-2.5 text-[10px] font-medium text-white placeholder:text-gray-600 focus:border-cisco-blue focus:outline-none"
+                                        value={formData.macAddress}
+                                        onChange={(e) => setFormData({ ...formData, macAddress: e.target.value })}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold uppercase text-gray-500 mb-1.5 ml-1">Serial Number</label>
+                                    <input
+                                        placeholder="e.g. FOC12345678"
+                                        className="w-full rounded-lg border border-node-border bg-node px-4 py-2.5 text-[10px] font-medium text-white placeholder:text-gray-600 focus:border-cisco-blue focus:outline-none"
+                                        value={formData.serialNumber}
+                                        onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+
                             <div className="pt-2">
                                 <label className="block text-xs font-bold uppercase text-gray-500 mb-2 ml-1">Blank Config Context</label>
-                                <div className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-node-border bg-node/30 p-4 transition-colors hover:border-cisco-blue/50">
+                                <label className="flex flex-col items-center justify-center rounded-xl border-2 border-dashed border-node-border bg-node/30 p-4 transition-colors hover:border-cisco-blue/50 cursor-pointer">
                                     <Upload className="mb-2 text-gray-500" size={24} />
                                     <p className="text-[10px] text-gray-500 font-medium uppercase tracking-wider text-center">
                                         Drag hardware context tab (.txt, .cfg)<br />or click to upload
                                     </p>
-                                </div>
+                                    <input
+                                        type="file"
+                                        accept=".txt,.cfg"
+                                        className="hidden"
+                                        onChange={handleConfigUpload}
+                                    />
+                                </label>
+                                {formData.blankConfigContext && (
+                                    <div className="mt-2 text-[10px] text-gray-500 font-medium uppercase tracking-wider">
+                                        Context attached • fields auto-populated
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

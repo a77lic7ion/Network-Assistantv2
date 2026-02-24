@@ -9,12 +9,18 @@ interface SettingsState {
     activeProvider: ProviderType;
     providerStatus: Record<ProviderType, 'unconfigured' | 'testing' | 'ok' | 'error'>;
     tavilyApiKey: string;
+    tavilyStatus: 'unconfigured' | 'testing' | 'ok' | 'error';
+    debugMode: boolean;
+    autoValidate: boolean;
 
     setApiKey: (provider: ProviderType, key: string) => void;
     setModel: (provider: ProviderType, model: string) => void;
     setActiveProvider: (provider: ProviderType) => void;
     setTavilyApiKey: (key: string) => void;
+    setDebugMode: (enabled: boolean) => void;
+    setAutoValidate: (enabled: boolean) => void;
     testConnection: (provider: ProviderType) => Promise<void>;
+    testTavilyConnection: () => Promise<void>;
     fetchModels: (provider: ProviderType) => Promise<void>;
 }
 
@@ -51,6 +57,9 @@ export const useSettingsStore = create<SettingsState>()(
                 ollama: 'unconfigured',
             },
             tavilyApiKey: '',
+            tavilyStatus: 'unconfigured',
+            debugMode: false,
+            autoValidate: true,
 
             setApiKey: (provider, key) =>
                 set((state) => ({
@@ -63,7 +72,11 @@ export const useSettingsStore = create<SettingsState>()(
 
             setActiveProvider: (provider) => set({ activeProvider: provider }),
 
-            setTavilyApiKey: (key) => set({ tavilyApiKey: key }),
+            setTavilyApiKey: (key) => set({ tavilyApiKey: key, tavilyStatus: key ? 'ok' : 'unconfigured' }),
+
+            setDebugMode: (enabled) => set({ debugMode: enabled }),
+
+            setAutoValidate: (enabled) => set({ autoValidate: enabled }),
 
             fetchModels: async (provider) => {
                 const key = get().apiKeys[provider];
@@ -101,6 +114,23 @@ export const useSettingsStore = create<SettingsState>()(
                     set((state) => ({
                         providerStatus: { ...state.providerStatus, [provider]: 'error' }
                     }));
+                    throw error;
+                }
+            },
+
+            testTavilyConnection: async () => {
+                const key = get().tavilyApiKey;
+                if (!key) return;
+
+                set({ tavilyStatus: 'testing' });
+
+                try {
+                    const { TavilySearch } = await import('../lib/ai/TavilySearch');
+                    await TavilySearch.search('test connection', key);
+
+                    set({ tavilyStatus: 'ok' });
+                } catch (error) {
+                    set({ tavilyStatus: 'error' });
                     throw error;
                 }
             },

@@ -28,6 +28,21 @@ Output ONLY a JSON object:
   "hostname_1": "cli commands...",
   "hostname_2": "cli commands..."
 }
+
+STRICT OUTPUT REQUIREMENTS:
+- IOS syntax only. No pseudo code, comments, or warnings.
+- Use configuration mode where needed. For global tasks begin with:
+  conf t
+  <commands...>
+  end
+- For VLAN creation, use canonical form:
+  conf t
+  vlan <ID>
+   name <NAME>
+  exit
+  end
+- Avoid contradictory lines (e.g., "login" and "no login" together).
+- Do not include "USAGE WARNING" or any non-CLI text.
 `;
 
         try {

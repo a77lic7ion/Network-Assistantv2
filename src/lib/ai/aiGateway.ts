@@ -24,7 +24,24 @@ export class AIGateway {
 
         try {
             const adapter = AdapterFactory.getAdapter(provider);
+            
+            if (settings.debugMode) {
+                console.log(`%c[AI DEBUG - REQUEST]`, 'color: #1ba0d7; font-weight: bold;', {
+                    provider,
+                    model,
+                    prompt: request.prompt,
+                    systemPrompt: request.systemPrompt
+                });
+            }
+
             const response = await adapter.generateResponse({ ...request, model }, apiKey);
+
+            if (settings.debugMode) {
+                console.log(`%c[AI DEBUG - RESPONSE]`, 'color: #4ade80; font-weight: bold;', {
+                    content: response.content,
+                    usage: response.usage
+                });
+            }
 
             // Rule 4: Add usage tracking / logging if needed (Phase 5)
             console.log(`AI Success (${provider}):`, response.usage);

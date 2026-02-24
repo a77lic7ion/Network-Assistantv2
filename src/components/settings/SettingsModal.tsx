@@ -17,11 +17,17 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
         activeProvider,
         providerStatus,
         tavilyApiKey,
+        tavilyStatus,
+        debugMode,
+        autoValidate,
         setApiKey,
         setModel,
         setActiveProvider,
         setTavilyApiKey,
+        setDebugMode,
+        setAutoValidate,
         testConnection,
+        testTavilyConnection,
         fetchModels
     } = useSettingsStore();
 
@@ -38,6 +44,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
             toast.error(`Connection failed: ${error.message}`);
         } finally {
             setTesting({ ...testing, [provider]: false });
+        }
+    };
+
+    const handleTavilyTest = async () => {
+        setTesting({ ...testing, tavily: true });
+        try {
+            await testTavilyConnection();
+            toast.success('Tavily connection successful!');
+        } catch (error: any) {
+            toast.error(`Tavily connection failed: ${error.message}`);
+        } finally {
+            setTesting({ ...testing, tavily: false });
         }
     };
 
@@ -180,13 +198,28 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                     </div>
 
                                     <div className="space-y-4">
-                                        <input
-                                            type="password"
-                                            placeholder="Enter Tavily API Key"
-                                            value={tavilyApiKey}
-                                            onChange={(e) => setTavilyApiKey(e.target.value)}
-                                            className="w-full rounded-xl border border-node-border bg-black/40 px-4 py-3 text-xs text-white focus:border-green-500 focus:outline-none"
-                                        />
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="password"
+                                                placeholder="Enter Tavily API Key"
+                                                value={tavilyApiKey}
+                                                onChange={(e) => setTavilyApiKey(e.target.value)}
+                                                className="flex-1 rounded-xl border border-node-border bg-black/40 px-4 py-3 text-xs text-white focus:border-green-500 focus:outline-none"
+                                            />
+                                            {tavilyStatus === 'ok' && <CheckCircle2 size={18} className="text-green-500" />}
+                                            {tavilyStatus === 'error' && <AlertCircle size={18} className="text-red-500" />}
+                                            
+                                            <button
+                                                disabled={testing.tavily || !tavilyApiKey}
+                                                onClick={handleTavilyTest}
+                                                className={`rounded-xl px-4 py-3 text-[10px] font-black uppercase tracking-tighter transition-all ${
+                                                    testing.tavily ? 'bg-gray-700 text-gray-500 animate-pulse' : 'bg-green-600 text-white hover:bg-green-700'
+                                                }`}
+                                            >
+                                                {testing.tavily ? 'TESTING...' : 'TEST'}
+                                            </button>
+                                        </div>
+                                        
                                         <div className="rounded-xl bg-green-500/5 p-4 border border-green-500/20">
                                             <p className="text-[10px] text-gray-400 leading-relaxed italic">
                                                 The <span className="text-white font-bold">Validator Agent</span> uses Tavily to find command syntax for unknown hardware models or new software versions.
@@ -208,8 +241,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                             <p className="text-xs font-bold text-white uppercase">Debug Mode</p>
                                             <p className="text-[9px] text-gray-500 uppercase font-medium">Show AI raw thoughts in console</p>
                                         </div>
-                                        <div className="h-6 w-12 rounded-full bg-node-border relative p-1 cursor-pointer">
-                                            <div className="h-4 w-4 rounded-full bg-gray-500" />
+                                        <div 
+                                            onClick={() => setDebugMode(!debugMode)}
+                                            className={`h-6 w-12 rounded-full relative p-1 cursor-pointer transition-colors ${debugMode ? 'bg-cisco-blue' : 'bg-node-border'}`}
+                                        >
+                                            <div className={`h-4 w-4 rounded-full transition-all duration-200 ${debugMode ? 'translate-x-6 bg-white' : 'translate-x-0 bg-gray-500'}`} />
                                         </div>
                                     </div>
                                     <div className="flex items-center justify-between">
@@ -217,8 +253,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose }) => {
                                             <p className="text-xs font-bold text-white uppercase">Auto-Validate</p>
                                             <p className="text-[9px] text-gray-500 uppercase font-medium">Run syntax agent on every apply</p>
                                         </div>
-                                        <div className="h-6 w-12 rounded-full bg-cisco-blue relative p-1 cursor-pointer flex justify-end">
-                                            <div className="h-4 w-4 rounded-full bg-white" />
+                                        <div 
+                                            onClick={() => setAutoValidate(!autoValidate)}
+                                            className={`h-6 w-12 rounded-full relative p-1 cursor-pointer transition-colors ${autoValidate ? 'bg-cisco-blue' : 'bg-node-border'}`}
+                                        >
+                                            <div className={`h-4 w-4 rounded-full transition-all duration-200 ${autoValidate ? 'translate-x-6 bg-white' : 'translate-x-0 bg-gray-500'}`} />
                                         </div>
                                     </div>
                                 </div>

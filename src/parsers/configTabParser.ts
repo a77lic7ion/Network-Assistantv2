@@ -22,10 +22,13 @@ export interface ParsedInterface {
 export interface ParsedConfigTab {
     hostname: string;
     managementIp: string;
-    interfaces: ParsedInterface[]; // Changed to array of ParsedInterface
-    vlanRange: string; // This might be less relevant now, but keeping for existing code
+    allIps: string[]; // List of all detected IPs (SVIs, etc.)
+    interfaces: ParsedInterface[];
+    vlanRange: string;
     hardwareModel: string;
     osVersion: string;
+    macAddress: string;
+    serialNumber: string;
     raw: string;
 }
 
@@ -41,40 +44,81 @@ export class ConfigTabParser {
         let vlanRange = '';
         let hostname = '';
         let managementIp = '';
+        let allIps: string[] = [];
+        let macAddress = '';
+        let serialNumber = '';
 
         const lines = text.split('\n');
         let currentInterface: ParsedInterface | null = null;
 
         lines.forEach(line => {
+            const trimmed = line.trim();
+
             // Hostname
             const hostnameMatch = line.match(/^hostname\s+(\S+)/i);
             if (hostnameMatch && !hostname) {
                 hostname = hostnameMatch[1];
             }
 
-            // Management IP (simple approach: first IP on a VLAN interface)
-            const vlanInterfaceIpMatch = line.match(/^interface Vlan\d+\s*\n(?:.*\n)*?^\s*ip address\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\s+(?:[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/im);
-            if (vlanInterfaceIpMatch && !managementIp) {
-                managementIp = vlanInterfaceIpMatch[1];
+            // IP Addresses (collect all)
+            const ipMatch = line.match(/ip address\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/i);
+            if (ipMatch) {
+                const ip = ipMatch[1];
+                if (!allIps.includes(ip)) {
+                    allIps.push(ip);
+                }
+                if (!managementIp) managementIp = ip;
             }
 
-            // Hardware model and OS Version (existing logic)
-            const modelMatch = line.match(/(?:Model|PID|Hardware):\s*([a-zA-Z0-9\-]+)/i);
+            // Hardware model
+            const modelMatch = line.match(/(?:Model|PID|Hardware|Board ID):\s*([a-zA-Z0-9\-]+)/i);
             if (modelMatch && !hardwareModel) {
                 hardwareModel = modelMatch[1];
             }
-            const versionMatch = line.match(/(?:Version|Software|IOS-XE Version)\s*([0-9\(\)a-zA-Z\.]+)/i);
+            // Specific Cisco model patterns
+            if (!hardwareModel) {
+                const ciscoModelMatch = line.match(/(C[0-9]{4}[A-Z]*-[0-9A-Z]+)/i);
+                if (ciscoModelMatch) hardwareModel = ciscoModelMatch[1];
+            }
+
+            // OS Version
+            const versionMatch = line.match(/(?:Version|Software|IOS-XE Version|IOS Version|Release)\s*([0-9\(\)a-zA-Z\.]+)/i);
             if (versionMatch && !osVersion) {
                 osVersion = versionMatch[1];
             }
 
+            // MAC Address
+            const macMatch = line.match(/(?:MAC Address|Base Ethernet MAC Address|Burned-in Address|BIA)\s*(?:is\s*)?([0-9a-fA-F]{4}\.[0-9a-fA-F]{4}\.[0-9a-fA-F]{4}|[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2}:[0-9a-fA-F]{2})/i);
+            if (macMatch && !macAddress) {
+                macAddress = macMatch[1];
+            }
+
+            // Serial Number
+            const serialMatch = line.match(/(?:Serial Number|System Serial Number|SN|Processor board ID)\s*(?:is\s*)?([a-zA-Z0-9]{10,12})/i);
+            if (serialMatch && !serialNumber) {
+                serialNumber = serialMatch[1];
+            }
+
             // Interface parsing
-            const interfaceStartMatch = line.match(/^(interface\s+(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Vlan|Port-channel)\s*[0-9\/\.]+)/i);
+            const interfaceStartMatch = line.match(/^(interface\s+(?:GigabitEthernet|FastEthernet|TenGigabitEthernet|Ethernet|Vlan|Port-channel|Management)\s*[0-9\/\.]+)/i);
             if (interfaceStartMatch) {
                 if (currentInterface) {
                     interfaces.push(currentInterface);
                 }
-                currentInterface = { name: interfaceStartMatch[1].replace('interface ', '') };
+                const name = interfaceStartMatch[1].replace('interface ', '').trim();
+                
+                // Determine Media Type
+                let mediaType: 'Eth' | 'Fiber' | 'Mgmt' | 'Console' = 'Eth';
+                if (name.toLowerCase().includes('vlan')) mediaType = 'Eth';
+                if (name.toLowerCase().includes('mgmt') || name.toLowerCase().includes('management')) mediaType = 'Mgmt';
+                if (name.toLowerCase().includes('console')) mediaType = 'Console';
+                if (name.toLowerCase().includes('ten') || name.toLowerCase().includes('forty') || name.toLowerCase().includes('hundred')) mediaType = 'Fiber';
+
+                currentInterface = { 
+                    name,
+                    status: 'up',
+                    mediaType 
+                };
             } else if (currentInterface) {
                 // Parse details within the current interface block
                 const ipAddressMatch = line.match(/^\s*ip address\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})\s+([0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3})/i);
@@ -86,7 +130,23 @@ export class ConfigTabParser {
 
                 const descriptionMatch = line.match(/^\s*description\s+(.*)/i);
                 if (descriptionMatch) {
-                    currentInterface.description = descriptionMatch[1];
+                    const desc = descriptionMatch[1].trim();
+                    currentInterface.description = desc;
+
+                    // Fiber override if description implies it
+                    if (desc.toLowerCase().includes('sfp') || desc.toLowerCase().includes('fiber')) {
+                        currentInterface.mediaType = 'Fiber';
+                    }
+
+                    // Intelligent discovery from description
+                    // Pattern: "To HOSTNAME port Gi1/0/1" or "Connects to HOSTNAME"
+                    const neighborMatch = desc.match(/(?:to|connects? to|neighbor:)\s+([a-zA-Z0-9\-_]+)(?:\s+(?:port|on)\s+([a-zA-Z0-9\/\.]+))?/i);
+                    if (neighborMatch) {
+                        currentInterface.cdpNeighbor = {
+                            hostname: neighborMatch[1],
+                            localPort: neighborMatch[2] || 'unknown'
+                        };
+                    }
                 }
 
                 const switchportModeAccessMatch = line.match(/^\s*switchport mode access/i);
@@ -129,12 +189,28 @@ export class ConfigTabParser {
         return {
             hostname,
             managementIp,
+            allIps,
             interfaces,
             hardwareModel,
             osVersion,
+            macAddress,
+            serialNumber,
             vlanRange,
             raw: text
         };
+    }
+
+    /**
+     * Helper to determine if an interface is a physical port (Ethernet/Fiber)
+     * vs a logical one (VLAN, Loopback, Tunnel, Port-channel).
+     */
+    static isPhysicalInterface(name: string): boolean {
+        const lower = name.toLowerCase();
+        // Check for common physical interface prefixes
+        if (lower.startsWith('gi') || lower.startsWith('te') || lower.startsWith('fa') || lower.startsWith('eth') || lower.startsWith('twe') || lower.startsWith('hu') || lower.startsWith('fo')) {
+            return true;
+        }
+        return false;
     }
 
     /**

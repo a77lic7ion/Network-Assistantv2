@@ -5,11 +5,19 @@ import { GlobalConfigAgent } from '../../agents/globalConfigAgent';
 import { toast } from 'sonner';
 
 const GlobalConfigPanel: React.FC = () => {
-    const { nodes, appendToRunningConfig } = useNetworkStore();
+    const { getNodesForCurrentProject, appendToRunningConfig, currentProjectId } = useNetworkStore();
+    const nodes = getNodesForCurrentProject();
     const [directive, setDirective] = useState('');
     const [isGenerating, setIsGenerating] = useState(false);
     const [proposedConfigs, setProposedConfigs] = useState<Record<string, string>>({});
     const [appliedNodes, setAppliedNodes] = useState<Set<string>>(new Set());
+
+    // Reset when project changes
+    React.useEffect(() => {
+        setDirective('');
+        setProposedConfigs({});
+        setAppliedNodes(new Set());
+    }, [currentProjectId]);
 
     const handleGenerate = async () => {
         if (!directive.trim()) return;
@@ -18,7 +26,8 @@ const GlobalConfigPanel: React.FC = () => {
         setAppliedNodes(new Set());
 
         try {
-            const deviceData = nodes.map(n => n.data);
+            const scopedNodes = currentProjectId ? nodes.filter(n => n.data.projectId === currentProjectId) : nodes;
+            const deviceData = scopedNodes.map(n => n.data);
             const configs = await GlobalConfigAgent.generateGlobalConfigs(directive, deviceData);
             setProposedConfigs(configs);
             toast.success('Global configuration generated successfully.');
@@ -30,10 +39,13 @@ const GlobalConfigPanel: React.FC = () => {
     };
 
     const handleApplyAll = () => {
+        const scopedNodes = currentProjectId ? nodes.filter(n => n.data.projectId === currentProjectId) : nodes;
+        const mapByHostname = new Map(scopedNodes.map(n => [n.data.hostname.trim().toLowerCase(), n]));
         let count = 0;
         Object.entries(proposedConfigs).forEach(([hostname, cli]) => {
             if (!cli.trim()) return;
-            const node = nodes.find(n => n.data.hostname === hostname);
+            const key = hostname.trim().toLowerCase();
+            const node = mapByHostname.get(key);
             if (node) {
                 appendToRunningConfig(node.id, cli);
                 count++;

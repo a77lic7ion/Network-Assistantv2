@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Play, Check, Copy, AlertCircle, ShieldCheck, Search, Loader2 } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { atomDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { useNetworkStore } from '../../store/useNetworkStore';
+import { useSettingsStore } from '../../store/useSettingsStore';
 import { ValidatorAgent } from '../../agents/validatorAgent';
 import { ValidationResult } from '../../types';
 import { toast } from 'sonner';
@@ -19,38 +20,55 @@ const CLIBlock: React.FC<CLIBlockProps> = ({ section, commands, nodeId }) => {
     const [validation, setValidation] = useState<ValidationResult | null>(null);
     const appendToRunningConfig = useNetworkStore((state) => state.appendToRunningConfig);
     const getDevice = useNetworkStore((state) => state.getDevice);
+    const selectedNodeId = useNetworkStore((state) => state.selectedNodeId);
+    const autoValidate = useSettingsStore((state) => state.autoValidate);
+
+    const effectiveNodeId = nodeId || selectedNodeId;
 
     const handleValidate = async () => {
-        if (!nodeId) return;
-        const device = getDevice(nodeId);
+        const targetId = nodeId || selectedNodeId;
+        if (!targetId) return;
+        const device = getDevice(targetId);
         if (!device) return;
 
         setIsValidating(true);
         try {
             const result = await ValidatorAgent.validate(commands, device);
             setValidation(result);
-            if (result.valid) {
-                toast.success('Syntax validated successfully');
-            } else {
-                toast.warning('Validation issues found');
-            }
         } catch (error: any) {
-            toast.error('Validation failed');
+            console.error('Auto-validation failed');
         } finally {
             setIsValidating(false);
         }
     };
 
+    useEffect(() => {
+        if (autoValidate && !validation && !isValidating) {
+            handleValidate();
+        }
+    }, [autoValidate, effectiveNodeId]);
+
     const handleApply = () => {
-        if (!nodeId) {
+        // Use the explicitly passed nodeId (for embedded chat) or the globally selected one
+        const targetId = nodeId || selectedNodeId;
+        
+        if (!targetId) {
             toast.error('No target node selected for this block.');
             return;
         }
 
-        const device = getDevice(nodeId);
+        const device = getDevice(targetId);
         if (!device) return;
 
-        appendToRunningConfig(nodeId, commands);
+        // Prepend a marker for global configs if the user prompt was from Global Orchestrator
+        const markedCommands = commands.split('\n').map(line => {
+            if (line.trim() && !line.trim().startsWith('!') && !line.trim().startsWith('exit') && !line.trim().startsWith('end')) {
+                return `${line} ! GLOBAL_CONFIG_APPLIED`;
+            }
+            return line;
+        }).join('\n');
+
+        appendToRunningConfig(targetId, markedCommands);
         setApplied(true);
         toast.success(`Applied to ${device.hostname}`);
         setTimeout(() => setApplied(false), 3000);
@@ -77,7 +95,7 @@ const CLIBlock: React.FC<CLIBlockProps> = ({ section, commands, nodeId }) => {
                         <Copy size={12} />
                     </button>
 
-                    {nodeId && (
+                    {effectiveNodeId && (
                         <button
                             onClick={handleValidate}
                             disabled={isValidating || !!validation}
@@ -145,7 +163,7 @@ const CLIBlock: React.FC<CLIBlockProps> = ({ section, commands, nodeId }) => {
                 </div>
             )}
 
-            {!nodeId && (
+            {!effectiveNodeId && (
                 <div className="bg-red-500/5 p-2 flex items-center gap-2 border-t border-red-500/10">
                     <AlertCircle size={10} className="text-red-500" />
                     <span className="text-[8px] font-bold text-red-500 uppercase tracking-tighter">Warning: Select a device in topology to enable Apply</span>

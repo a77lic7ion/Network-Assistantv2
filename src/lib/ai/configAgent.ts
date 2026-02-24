@@ -38,6 +38,18 @@ INSTRUCTIONS:
 5. Be concise. Only provide the commands requested.
 6. Always include "end" or "write memory" if appropriate for the vendor.
 7. If unsure about syntax for this specific model, state your assumptions.
+8. IOS strictness:
+   - Use configuration mode when necessary:
+     conf t
+     <commands...>
+     end
+   - For VLAN creation:
+     conf t
+     vlan <ID>
+      name <NAME>
+     exit
+     end
+   - Do not output warnings or comments. Avoid contradictory lines (e.g., "login" and "no login").
 
 User Request: ${userMessage}
 `;

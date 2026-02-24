@@ -10,15 +10,36 @@ import CLIBlock from './CLIBlock';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
-const ChatPanel: React.FC = () => {
+interface ChatPanelProps {
+    isEmbedded?: boolean;
+    nodeId?: string;
+}
+
+const ChatPanel: React.FC<ChatPanelProps> = ({ isEmbedded, nodeId }) => {
     const { activeSessionId, isLoading, startNewSession, addMessage, deleteSession, setLoading, getActiveSession } = useChatStore();
-    const { nodes, edges, selectedNodeId, getDevice } = useNetworkStore();
+    const { getNodesForCurrentProject, edges, selectedNodeId, getDevice, currentProjectId } = useNetworkStore();
+    const nodes = getNodesForCurrentProject();
     const { activeProvider } = useSettingsStore();
+
+    // If nodeId is provided (embedded), use it, otherwise use selectedNodeId from store
+    const effectiveNodeId = nodeId || selectedNodeId;
 
     const [input, setInput] = useState('');
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const activeSession = getActiveSession();
+
+    const handleNewChat = () => {
+        startNewSession(effectiveNodeId || undefined);
+        toast.success('New conversation started');
+    };
+
+    // Auto-start session for embedded if none exists
+    useEffect(() => {
+        if (isEmbedded && effectiveNodeId && !activeSessionId) {
+            startNewSession(effectiveNodeId);
+        }
+    }, [isEmbedded, activeSessionId, effectiveNodeId, startNewSession]);
 
     // Auto-scroll to bottom
     useEffect(() => {
@@ -32,7 +53,7 @@ const ChatPanel: React.FC = () => {
 
         let sessionId = activeSessionId;
         if (!sessionId) {
-            sessionId = startNewSession(selectedNodeId || undefined);
+            sessionId = startNewSession(effectiveNodeId || undefined);
         }
 
         const userMsg = input.trim();
@@ -42,12 +63,15 @@ const ChatPanel: React.FC = () => {
 
         try {
             // Build context
-            const targetNode = selectedNodeId ? getDevice(selectedNodeId) : undefined;
+            const targetNode = effectiveNodeId ? getDevice(effectiveNodeId) : undefined;
             const history = activeSession?.messages || [];
 
+            const scopedNodes = currentProjectId ? nodes.filter(n => n.data.projectId === currentProjectId) : nodes;
+            const scopedNodeIds = new Set(scopedNodes.map(n => n.id));
+            const scopedEdges = edges.filter(e => scopedNodeIds.has(e.source) && scopedNodeIds.has(e.target));
             const topologySummary = `
-Nodes: ${nodes.map(n => `${n.data.hostname} (${n.data.deviceType})`).join(', ')}
-Edges: ${edges.map(e => `${e.source} -> ${e.target}`).join(', ')}
+Nodes: ${scopedNodes.map(n => `${n.data.hostname} (${n.data.deviceType})`).join(', ')}
+Edges: ${scopedEdges.map(e => `${e.source} -> ${e.target}`).join(', ')}
 `.trim();
 
             // Create prompt
@@ -72,7 +96,7 @@ User: ${userMsg}
         }
     };
 
-    const renderContent = (content: string, nodeId?: string) => {
+    const renderContent = (content: string, sessionNodeId?: string) => {
         const parts = content.split(/(```cli\n[\s\S]*?```)/g);
 
         return parts.map((part, idx) => {
@@ -83,7 +107,7 @@ User: ${userMsg}
                         key={`${idx}-${bIdx}`}
                         section={b.section}
                         commands={b.commands}
-                        nodeId={nodeId}
+                        nodeId={sessionNodeId || effectiveNodeId || undefined}
                     />
                 ));
             }
@@ -100,26 +124,25 @@ User: ${userMsg}
     };
 
     return (
-        <div className="flex h-full flex-col bg-background">
+        <div className={`flex h-full flex-col bg-background ${isEmbedded ? '' : 'p-0'}`}>
             {/* Session Controls */}
             <div className="flex items-center justify-between border-b border-node-border bg-node/10 p-4">
                 <div className="flex items-center gap-3">
                     <Bot size={18} className="text-cisco-blue" />
-                    <h2 className="text-xs font-black uppercase tracking-widest text-white">AI Co-Pilot Hub</h2>
-                    <div className="flex items-center gap-1 ml-2 bg-cisco-blue/10 px-2 py-0.5 rounded-full">
-                        <span className="h-1 w-1 rounded-full bg-cisco-blue animate-pulse"></span>
-                        <span className="text-[8px] font-black text-cisco-blue uppercase">{activeProvider}</span>
-                    </div>
+                    <h2 className="text-xs font-black uppercase tracking-widest text-white">
+                        {isEmbedded ? `AI Context: ${getDevice(effectiveNodeId || '')?.hostname || 'Node'}` : 'AI Co-Pilot Hub'}
+                    </h2>
                 </div>
                 <div className="flex gap-2">
                     <button
-                        onClick={() => startNewSession(selectedNodeId || undefined)}
+                        onClick={handleNewChat}
                         className="flex items-center gap-1.5 rounded-lg border border-node-border bg-node/50 px-3 py-1.5 text-[9px] font-black uppercase tracking-tight text-white hover:bg-node transition-all"
+                        title="Start a fresh conversation"
                     >
                         <PlusCircle size={12} />
-                        New Thread
+                        New Chat
                     </button>
-                    {activeSessionId && (
+                    {!isEmbedded && activeSessionId && (
                         <button
                             onClick={() => deleteSession(activeSessionId)}
                             className="p-1.5 text-gray-600 hover:text-red-500 transition-colors"
@@ -136,14 +159,16 @@ User: ${userMsg}
                 ref={scrollRef}
                 className="flex-1 overflow-auto p-6 space-y-8 custom-scrollbar"
             >
-                {activeSession?.messages.length === 0 && (
+                {(!activeSession || activeSession.messages.length === 0) && (
                     <div className="flex flex-col items-center justify-center h-full text-center space-y-4 opacity-50 grayscale hover:grayscale-0 transition-all duration-700">
                         <div className="h-20 w-20 rounded-3xl bg-cisco-blue/5 border border-cisco-blue/20 flex items-center justify-center text-cisco-blue">
                             <Terminal size={40} />
                         </div>
                         <div className="space-y-1">
                             <p className="text-sm font-black uppercase tracking-widest text-white">Ready for directives</p>
-                            <p className="text-[10px] text-gray-500 font-medium max-w-[200px]">Select a node or ask a global question to begin orchestration.</p>
+                            <p className="text-[10px] text-gray-500 font-medium max-w-[200px]">
+                                {effectiveNodeId ? `Instruct AI specifically for ${getDevice(effectiveNodeId)?.hostname}.` : "Select a node or ask a global question to begin orchestration."}
+                            </p>
                         </div>
                     </div>
                 )}
@@ -203,18 +228,18 @@ User: ${userMsg}
                         className="flex items-end gap-3 rounded-2xl border border-node-border bg-background p-2 transition-all focus-within:border-cisco-blue focus-within:shadow-[0_0_20px_rgba(27,160,215,0.15)]"
                     >
                         <textarea
-                            rows={1}
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' && !e.shiftKey) {
-                                    e.preventDefault();
-                                    handleSend();
-                                }
-                            }}
-                            placeholder={selectedNodeId ? `Command ${getDevice(selectedNodeId)?.hostname}...` : "Ask anything about the topology..."}
-                            className="flex-1 resize-none bg-transparent px-2 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none custom-scrollbar max-h-32"
-                        />
+                                rows={1}
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && !e.shiftKey) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder={effectiveNodeId ? `Command ${getDevice(effectiveNodeId)?.hostname}...` : "Ask anything about the topology..."}
+                                className="flex-1 resize-none bg-transparent px-2 py-3 text-sm text-white placeholder:text-gray-600 focus:outline-none custom-scrollbar max-h-32"
+                            />
                         <button
                             disabled={!input.trim() || isLoading}
                             className="flex h-10 w-10 items-center justify-center rounded-xl bg-cisco-blue text-white shadow-lg transition-all hover:opacity-90 disabled:bg-node-border disabled:text-gray-600 disabled:shadow-none"
@@ -223,10 +248,10 @@ User: ${userMsg}
                             <Send size={18} />
                         </button>
                     </form>
-                    {selectedNodeId && (
+                    {effectiveNodeId && (
                         <div className="absolute -top-3 left-4 flex items-center gap-1.5 rounded-full bg-cisco-blue px-2 py-0.5 shadow-lg border border-white/10">
                             <Terminal size={8} className="text-white" />
-                            <span className="text-[7px] font-black uppercase tracking-tighter text-white">Focus: {getDevice(selectedNodeId)?.hostname}</span>
+                            <span className="text-[7px] font-black uppercase tracking-tighter text-white">Focus: {getDevice(effectiveNodeId)?.hostname}</span>
                         </div>
                     )}
                 </div>
