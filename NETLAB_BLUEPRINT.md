@@ -8,7 +8,7 @@
 1. [Overview](#overview)
 2. [Technology Stack](#technology-stack)
 3. [Project Structure](#project-structure)
-4. [Core Application State (Zustand)](#core-application-state-zustand)
+4. [Core Application StatNetwork AssistantNetLab AIe (Zustand)](#core-application-state-zustand)
 5. [Feature Modules](#feature-modules)
    - [Settings Modal & AI Provider Configuration](#1-settings-modal--ai-provider-configuration)
    - [Canvas / Network Topology Builder](#2-canvas--network-topology-builder)
