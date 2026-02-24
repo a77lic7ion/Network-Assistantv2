@@ -93,6 +93,13 @@ export interface SimHop {
     egressInterface: string;
     ipAddress: string;
     reachable: boolean;
+    // Enhanced analytics fields
+    latency?: number;          // milliseconds
+    jitter?: number;           // milliseconds
+    packetLoss?: number;       // percentage 0-100
+    mtu?: number;             // Maximum Transmission Unit
+    encapsulation?: string;    // e.g., "802.1Q", "VXLAN", "None"
+    queueDepth?: number;       // percentage 0-100
 }
 
 export interface PingResult {

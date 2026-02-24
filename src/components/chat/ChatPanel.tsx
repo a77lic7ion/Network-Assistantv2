@@ -69,9 +69,29 @@ const ChatPanel: React.FC<ChatPanelProps> = ({ isEmbedded, nodeId }) => {
             const scopedNodes = currentProjectId ? nodes.filter(n => n.data.projectId === currentProjectId) : nodes;
             const scopedNodeIds = new Set(scopedNodes.map(n => n.id));
             const scopedEdges = edges.filter(e => scopedNodeIds.has(e.source) && scopedNodeIds.has(e.target));
+            
+            // Build detailed device configuration context for all nodes
+            const networkContext = scopedNodes.map(n => `
+--- DEVICE START ---
+Hostname: ${n.data.hostname}
+Model: ${n.data.deviceModel}
+Type: ${n.data.deviceType}
+Management IP: ${n.data.managementIp}
+RUNNING CONFIGURATION:
+${n.data.runningConfig || '! No config applied'}
+--- DEVICE END ---
+`).join('\n');
+
             const topologySummary = `
 Nodes: ${scopedNodes.map(n => `${n.data.hostname} (${n.data.deviceType})`).join(', ')}
-Edges: ${scopedEdges.map(e => `${e.source} -> ${e.target}`).join(', ')}
+Edges: ${scopedEdges.map(e => {
+    const src = scopedNodes.find(n => n.id === e.source)?.data.hostname || e.source;
+    const dst = scopedNodes.find(n => n.id === e.target)?.data.hostname || e.target;
+    return `${src} <-> ${dst}`;
+}).join(', ')}
+
+FULL NETWORK CONFIGURATION CONTEXT:
+${networkContext}
 `.trim();
 
             // Create prompt
@@ -80,9 +100,20 @@ Edges: ${scopedEdges.map(e => `${e.source} -> ${e.target}`).join(', ')}
                 finalPrompt = ConfigAgent.buildPrompt(userMsg, targetNode, history, topologySummary);
             } else {
                 finalPrompt = `
-You are a Network Assistant. Help the user with their topology or general queries.
-Topology Summary: ${topologySummary}
-User: ${userMsg}
+You are a Senior Network Architect and Automation Assistant.
+You have access to the FULL configuration of every device in the network topology below.
+
+When the user asks a question like "What VLANs are in this topology?" or "Show me all trunk ports", you MUST:
+1. Parse the provided RUNNING CONFIGURATION for every device.
+2. Aggregate and summarize the information directly.
+3. Do NOT tell the user how to check it themselves.
+4. Do NOT say "I don't have access". You have the full config below.
+
+TOPOLOGY & CONFIGURATION CONTEXT:
+${topologySummary}
+
+USER REQUEST:
+${userMsg}
 `;
             }
 

@@ -147,29 +147,58 @@ const SimulatorPanel: React.FC = () => {
                             <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-gray-600 ml-4">Logical Hop-by-Hop Analytics</h4>
                             <div className="flex flex-col gap-3">
                                 {result.hops.map((hop, i) => (
-                                    <div key={i} className="flex items-center gap-4">
-                                        <div className="bg-node/40 border border-node-border rounded-2xl p-5 flex-1 flex items-center justify-between">
-                                            <div className="flex items-center gap-6">
-                                                <span className="text-[10px] font-black text-cisco-blue w-6">0{i + 1}</span>
-                                                <div>
-                                                    <p className="text-xs font-black uppercase text-white">{hop.hostname}</p>
-                                                    <p className="text-[10px] font-mono text-gray-500">{hop.ipAddress}</p>
+                                    <div key={i} className="flex flex-col gap-2">
+                                        <div className="flex items-center gap-4">
+                                            <div className="bg-node/40 border border-node-border rounded-2xl p-5 flex-1 flex items-center justify-between">
+                                                <div className="flex items-center gap-6">
+                                                    <span className="text-[10px] font-black text-cisco-blue w-6">0{i + 1}</span>
+                                                    <div>
+                                                        <p className="text-xs font-black uppercase text-white">{hop.hostname}</p>
+                                                        <p className="text-[10px] font-mono text-gray-500">{hop.ipAddress}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex gap-8">
+                                                    <div className="text-right">
+                                                        <p className="text-[8px] font-black text-gray-700 uppercase">Ingress</p>
+                                                        <p className="text-[10px] font-medium text-white">{hop.ingressInterface}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-[8px] font-black text-gray-700 uppercase">Egress</p>
+                                                        <p className="text-[10px] font-medium text-white">{hop.egressInterface}</p>
+                                                    </div>
                                                 </div>
                                             </div>
-                                            <div className="flex gap-8">
-                                                <div className="text-right">
-                                                    <p className="text-[8px] font-black text-gray-700 uppercase">Ingress</p>
-                                                    <p className="text-[10px] font-medium text-white">{hop.ingressInterface}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-[8px] font-black text-gray-700 uppercase">Egress</p>
-                                                    <p className="text-[10px] font-medium text-white">{hop.egressInterface}</p>
-                                                </div>
+                                            {i < result.hops.length - 1 && (
+                                                <ArrowRight size={20} className="text-gray-700 shrink-0" />
+                                            )}
+                                        </div>
+                                        {/* Advanced Analytics Row */}
+                                        <div className="mx-4 flex items-center gap-4 bg-black/20 rounded-lg p-2 px-4 border border-node-border/50">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-gray-600 uppercase">Latency</span>
+                                                <span className="text-[10px] font-mono text-green-400">{hop.latency}ms</span>
+                                            </div>
+                                            <div className="w-[1px] h-3 bg-gray-800" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-gray-600 uppercase">Jitter</span>
+                                                <span className="text-[10px] font-mono text-green-400">{hop.jitter}ms</span>
+                                            </div>
+                                            <div className="w-[1px] h-3 bg-gray-800" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-gray-600 uppercase">MTU</span>
+                                                <span className="text-[10px] font-mono text-blue-400">{hop.mtu}</span>
+                                            </div>
+                                            <div className="w-[1px] h-3 bg-gray-800" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-gray-600 uppercase">Encap</span>
+                                                <span className="text-[10px] font-mono text-purple-400">{hop.encapsulation}</span>
+                                            </div>
+                                            <div className="w-[1px] h-3 bg-gray-800" />
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[9px] font-bold text-gray-600 uppercase">Queue</span>
+                                                <span className="text-[10px] font-mono text-yellow-400">{hop.queueDepth}%</span>
                                             </div>
                                         </div>
-                                        {i < result.hops.length - 1 && (
-                                            <ArrowRight size={20} className="text-gray-700 shrink-0" />
-                                        )}
                                     </div>
                                 ))}
                             </div>

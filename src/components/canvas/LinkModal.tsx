@@ -83,12 +83,22 @@ const LinkModal: React.FC<LinkModalProps> = ({
                 description: '',
             });
         }
-    }, [isOpen, detectedPorts]);
+    }, []); // Run only once on mount to initialize defaults
 
     if (!isOpen) return null;
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Log to debug why data might be missing
+        console.log("Submitting Link Data:", formData);
+        
+        // Ensure all required fields are present
+        if (!formData.interfaceA || !formData.interfaceB) {
+            alert("Please select both source and target interfaces.");
+            return;
+        }
+
         onSubmit(formData);
         onClose();
     };

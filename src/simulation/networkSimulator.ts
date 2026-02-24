@@ -55,7 +55,7 @@ export class NetworkSimulator {
         }
 
         // 2. Look for an edge between them (Directly Connected)
-        const edge = edges.find(e =>
+        const edge = nodes[0] && edges.find(e =>
             (e.source === sourceId && e.target === targetId) ||
             (e.source === targetId && e.target === sourceId)
         );
@@ -65,6 +65,13 @@ export class NetworkSimulator {
             if (sourceNode.data.managementIp && targetNode.data.managementIp) {
                 // Check if they have specific CLI config (at least some)
                 if (sourceNode.data.runningConfig && targetNode.data.runningConfig) {
+                    // Determine link characteristics based on medium
+                    const isFiber = edge.data.medium === 'fiber';
+                    const baseLatency = isFiber ? 0.2 : 0.8; // ms
+                    const baseJitter = isFiber ? 0.01 : 0.05; // ms
+                    const mtu = edge.data.linkMode === 'trunk' ? 1522 : 1500;
+                    const encap = edge.data.linkMode === 'trunk' ? '802.1Q' : 'ARPA';
+
                     return {
                         success: true,
                         sourceNodeId: sourceId,
@@ -75,17 +82,29 @@ export class NetworkSimulator {
                                 nodeId: sourceId,
                                 hostname: sourceNode.data.hostname,
                                 ingressInterface: 'mgmt-vlan',
-                                egressInterface: edge.data.interfaceA,
+                                egressInterface: edge.source === sourceId ? edge.data.interfaceA : edge.data.interfaceB,
                                 ipAddress: sourceNode.data.managementIp,
-                                reachable: true
+                                reachable: true,
+                                latency: 0.1, // Internal processing
+                                jitter: 0.01,
+                                packetLoss: 0,
+                                mtu: 9000, // Jumbo frames internal
+                                encapsulation: 'None',
+                                queueDepth: 2 // Low load
                             },
                             {
                                 nodeId: targetId,
                                 hostname: targetNode.data.hostname,
-                                ingressInterface: edge.data.interfaceB,
+                                ingressInterface: edge.target === targetId ? edge.data.interfaceB : edge.data.interfaceA,
                                 egressInterface: 'vty',
                                 ipAddress: targetNode.data.managementIp,
-                                reachable: true
+                                reachable: true,
+                                latency: baseLatency, // Link latency
+                                jitter: baseJitter,
+                                packetLoss: 0.001, // Minimal random loss
+                                mtu: mtu,
+                                encapsulation: encap,
+                                queueDepth: 5 // Moderate load
                             }
                         ],
                         warnings: []

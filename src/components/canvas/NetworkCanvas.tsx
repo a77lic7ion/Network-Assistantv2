@@ -84,17 +84,20 @@ const NetworkCanvasInner: React.FC = () => {
 
                 let updatedEdge: any;
 
+                const commonStyle = {
+                    strokeWidth: 3,
+                    stroke: linkData.medium === 'fiber' ? '#f97316' : '#22c55e', // Orange for fiber, Green for eth
+                };
+
                 if (existingEdgeIndex >= 0) {
                     const newEdges = [...state.edges];
                     updatedEdge = {
                         ...newEdges[existingEdgeIndex],
-                        data: linkData,
+                        data: { ...linkData }, // Ensure data is fully overwritten
                         label: `${linkData.interfaceA} <> ${linkData.interfaceB}`,
-                        animated: true, // Always animated for traffic direction
-                        style: { 
-                            stroke: linkData.medium === 'fiber' ? '#f97316' : '#22c55e',
-                            strokeWidth: 3,
-                        }
+                        animated: true, // Always animated
+                        style: commonStyle,
+                        selected: false // Force deselect to refresh style if needed
                     };
                     newEdges[existingEdgeIndex] = updatedEdge;
                     
@@ -107,12 +110,12 @@ const NetworkCanvasInner: React.FC = () => {
                 updatedEdge = {
                     ...linkConnection,
                     id: `edge-${Date.now()}`,
-                    data: linkData,
+                    data: { ...linkData },
                     label: `${linkData.interfaceA} <> ${linkData.interfaceB}`,
-                    animated: true, // Always animated for traffic direction
-                    style: { 
-                        stroke: linkData.medium === 'fiber' ? '#f97316' : '#22c55e',
+                    animated: true, // Always animated
+                    style: {
                         strokeWidth: 3,
+                        stroke: linkData.medium === 'fiber' ? '#f97316' : '#22c55e',
                     }
                 };
 
